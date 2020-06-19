@@ -67,7 +67,7 @@
         function gtag(){dataLayer.push(arguments);}
         gtag('js', new Date());
 
-        gtag('config', 'UA-77710107-12');
+<!-- Update this -->        gtag('config', 'UA-77710107-12');
     </script>
 
 
@@ -142,7 +142,7 @@
         var legend = L.control({position: 'bottomright'});
         legend.onAdd = function (map) {
             var div = L.DomUtil.create('div', 'info legend');
-            div.innerHTML = 'Colour by: <select id="colourscheme"><option>Route</option><option>Occupancy</option><option>Speed</select>';
+            div.innerHTML = 'Colour by: <select id="colourscheme"><option>Operator</option><option>Route</option><option>Occupancy</option><option>Speed</select>';
             return div;
         };
         legend.addTo(map);
@@ -161,7 +161,7 @@
 
         $.ajaxSetup({
             headers: {
-                'Ocp-Apim-Subscription-Key': '763b2ff00d474b29bc64acd6811517bb',
+                'Ocp-Apim-Subscription-Key': '60d2c3e6d073443691c54d2fa4a196e1',
             }
         });
         function stringToColour(str) {
@@ -185,6 +185,10 @@
                 } else if (marker.route_long_name) {
                     color = stringToColour(marker.route_long_name);
                 }
+            } else if (window.colourscheme == "Operator") {
+                if (operators.indexOf(marker.agency_id)) {
+                    color = operatorColours[operators.indexOf(marker.agency_id)];
+                }
             } else if (window.colourscheme == "Occupancy" && marker.occupancy_status != undefined) {
                 color = occupancyColors[marker.occupancy_status];
             } else if (window.colourscheme == "Speed") {
@@ -194,15 +198,18 @@
         }
 
         var markers = {}
-        var occupancy = ["empty", "many seats available", "few seats available", "standing room only", "limited standing room", "full", "not accepting passengers"]
-        var occupancyColors = ["#4575b4", "#91bfdb", "#e0f3f8", "#fee090", "#fc8d59", "#d73027", "black"]
+        var occupancy = ["empty", "many seats available", "few seats available", "standing room only", "limited standing room", "full", "not accepting passengers"];
+        var occupancyColors = ["#4575b4", "#91bfdb", "#e0f3f8", "#fee090", "#fc8d59", "#d73027", "black"];
+      
+		var operators = ["","RTH","NZB","PC","GBT","BAYES","HE","WBC","AM","ATMB"];
+		var operatorColours = ["","#3434eb", "#348feb", "#704338", "#14ed00", "#027870", "#57040e","#4ffff9","#eb4034","#eb4034"]
 
         var speedColors = chroma.scale([chroma.hsv(270,1,1), chroma.hsv(180,1,1), chroma.hsv(90,1,1), chroma.hsv(0,1,1)]).mode("hsv").domain([0, 100]);
 
         var hasLoaded = false;
 
         map.spin(true);
-        $.getJSON("https://api-proxy.auckland-cer.cloud.edu.au/AT/v2/gtfs/routes", function (data) {
+        $.getJSON("https://api.at.govt.nz/v2/gtfs/routes", function (data) {
             map.spin(false);
             console.log(data);
             var routes = {}
@@ -217,7 +224,7 @@
                 }
                 hasLoaded = true;
                 map.spin(true);
-                $.getJSON("https://api-proxy.auckland-cer.cloud.edu.au/AT/v2/public/realtime/vehiclelocations", function (data) {
+                $.getJSON("https://api.at.govt.nz/v2/public/realtime/vehiclelocations", function (data) {
                     map.spin(false);
                     console.log(data);
                     for (var i in data.response.entity) {
@@ -235,16 +242,17 @@
                         if (v.trip) {
                             var r = routes[v.trip.route_id];
                             if (r) {
-                                desc += r.route_short_name + ":" + r.route_long_name;
+                                desc = "<b>" + r.route_short_name + "</b> :" + r.route_long_name;
                                 marker.options.desc = desc;
                                 marker.route_long_name = r.route_long_name;
                                 marker.route_type = r.route_type;
+                                marker.agency_id = r.agency_id;
                                 layer = layers[r.route_type];
                             }
                         }
                         marker.addTo(layer);
                         marker.speed = Math.round(v.position.speed * 3.6)
-                        marker.bindTooltip(desc + "<br>Speed: " + marker.speed + "km/h<br>Occupancy: " + occupancy[v.occupancy_status])
+                        marker.bindTooltip(desc + "<br>Speed: " + marker.speed + "km/h<br>Occupancy: " + occupancy[v.occupancy_status] + "<br>Vehicle ID: " + v.vehicle.label)
                         marker.occupancy_status = v.occupancy_status;
                         updateMarkerColour(marker);
                     }
